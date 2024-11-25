@@ -13,4 +13,12 @@ namespace KieServerAdapter
         [JsonIgnore]
         public KieCommandTypeEnum CommandType { get; } = KieCommandTypeEnum.FireAllRules;
     }
+
+    public class CommandFireAllRulesEmpty : ICommand
+    {
+        
+
+        [JsonIgnore]
+        public KieCommandTypeEnum CommandType { get; } = KieCommandTypeEnum.FireAllRules;
+    }
 }

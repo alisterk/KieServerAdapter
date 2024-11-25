@@ -7,9 +7,9 @@ namespace KieServerAdapter
         [JsonProperty("get-global")]
         public ICommand Command { get; }
 
-        public GetGlobal(string identifier)
+        public GetGlobal(string identifier,string outIdentifier)
         {
-            Command = new CommandGetGlobal { Identifier = identifier };
+            Command = new CommandGetGlobal { Identifier = identifier,OutIdentifier= outIdentifier };
         }
     }
 }

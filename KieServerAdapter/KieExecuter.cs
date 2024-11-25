@@ -13,8 +13,9 @@ namespace KieServerAdapter
     public class KieExecuter
     {
         protected const string ApplicationType = "application/json";
-        protected const string AutenticationType = "basic";
+        protected const string AutenticationType = "Basic";
         protected const string DefaultInstancesPath = "/services/rest/server/containers/instances/";
+        private readonly bool perRequestAuth;
 
         [JsonIgnore]
         public string HostUrl { get; set; }
@@ -34,6 +35,13 @@ namespace KieServerAdapter
         [JsonProperty("commands")]
         public List<ICommandContainer> Commands { get; private set; } = new List<ICommandContainer>();
 
+
+        public KieExecuter(bool perRequestAuth = false)
+        {
+            this.perRequestAuth = perRequestAuth;
+        }
+
+
         public void StartProcess(string processId)
         {
             Commands.Add(new StartProcess(processId));
@@ -49,9 +57,16 @@ namespace KieServerAdapter
             Commands.Add(new SetGlobal(identifier, commandObject, objectNameSpace));
         }
 
+
+        public void SetGlobalBase(string identifier, object commandObject)
+        {
+            Commands.Add(new SetGlobalBase(identifier, commandObject));
+        }
+
+
         public void GetGlobal(string identifier)
         {
-            Commands.Add(new GetGlobal(identifier));
+            Commands.Add(new GetGlobal(identifier,identifier));
         }
 
         public void FireAllRules()
@@ -62,6 +77,11 @@ namespace KieServerAdapter
         public void FireAllRules(int max)
         {
             Commands.Add(new FireAllRules(max));
+        }
+
+        public void FireAllRulesEmpty()
+        {
+            Commands.Add(new FireAllRulesEmpty());
         }
 
         public async Task<ExecutionResponse<object>> ExecuteAsync(string containerName)
@@ -105,15 +125,28 @@ namespace KieServerAdapter
 
                 client.DefaultRequestHeaders.Clear();
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(ApplicationType));
-
-                if (!string.IsNullOrEmpty(AuthUserName))
-                {
-                    var byteArray = Encoding.ASCII.GetBytes($"{AuthUserName}:{AuthPassword}");
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(AutenticationType, Convert.ToBase64String(byteArray));
-                }
-
+ 
                 using (var request = new HttpRequestMessage(HttpMethod.Post, string.Concat(InstancesPath, DefaultInstancesPath, containerName)))
                 {
+
+                    if (!string.IsNullOrEmpty(AuthUserName))
+                    {
+                        var byteArray = Encoding.ASCII.GetBytes($"{AuthUserName}:{AuthPassword}");
+
+                        var auth= new AuthenticationHeaderValue(AutenticationType, Convert.ToBase64String(byteArray)); 
+
+                        if (perRequestAuth)
+                        {
+                            request.Headers.Authorization = auth;
+                        }
+                        else
+                        {
+                            client.DefaultRequestHeaders.Authorization = auth;
+                        }
+                        
+                        
+                    }
+                    request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(ApplicationType));
                     request.Content = new StringContent(json);
                     request.Content.Headers.ContentType = new MediaTypeHeaderValue(ApplicationType);
 
@@ -123,6 +156,11 @@ namespace KieServerAdapter
                         {
                             result = await response.Content.ReadAsAsync<ExecutionResponse<T>>();
                             result.ResponseBody = await response.Content.ReadAsStringAsync();
+                        }
+                        else
+                        {
+                            var resulttxt=await response.Content.ReadAsStringAsync();
+                            result.Msg = resulttxt;
                         }
                     }
                 }
